@@ -1,0 +1,85 @@
+[package]
+name = "allotize-core"
+version = "0.0.1"
+authors = ["Rasmus Viitanen <rasviitanen@gmail.com>"]
+description="Dynamic Web Apps without Server Infrastructure"
+readme="README.md"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = {version = "0.2.63", features = ["serde-serialize"]}
+wasm-bindgen-futures = "0.4.1"
+futures-channel-preview = "0.3.0-alpha.18"
+futures-preview = "=0.3.0-alpha.19"
+failure = "0.1.5"
+uuid = { version = "0.7.2", features = ["serde", "v4", "wasm-bindgen"] }
+serde = { version = "1.0.89", features = ["derive"] }
+serde_json = "1.0.39"
+lazy_static = "1.4.0"
+js-sys = "0.3.28"
+allotize-db = { path="../allotize-db" }
+crdts = "2.0.0"
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.6", optional = true }
+
+# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
+# compared to the default allocator's ~10K. It is slower than the default
+# allocator, however.
+#
+# Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
+wee_alloc = { version = "0.4.2", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+
+[dependencies.web-sys]
+version = "0.3.3"
+features = [
+  "Event",
+  "Document",
+  "WebSocket",
+  "Location",
+  "ErrorEvent",
+  "EventTarget",
+  "IdbVersionChangeEvent",
+  "Window",
+  "IdbObjectStore",
+  "IdbDatabase",
+  "IdbFactory",
+  "IdbIndex",
+  "IdbRequest",
+  "IdbRequestReadyState",
+  "IdbTransaction",
+  "IdbTransactionMode",
+  "IdbOpenDbRequest",
+  "RtcDataChannel",
+  "RtcDataChannelEvent",
+  "RtcDataChannelState",
+  "RtcIceCandidate",
+  "RtcIceCandidateInit",
+  "RtcOfferOptions",
+  "RtcPeerConnection",
+  "RtcConfiguration",
+  "RtcPeerConnectionIceEvent",
+  "RtcSessionDescription",
+  "RtcSessionDescriptionInit",
+  "RtcSdpType",
+  "RtcIceServer",
+  "RtcAnswerOptions",
+  "RtcIceConnectionState",
+  "RtcIceGatheringState",
+  "RtcSignalingState",
+  "EventTarget",
+  "CustomEvent",
+]
+
+[features]
+default = ["enable_logging"]
+enable_logging = []

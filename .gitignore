@@ -1,0 +1,4 @@
+**/target
+**/node_modules
+allotize-signal/target/
+allotize-core/pkg/

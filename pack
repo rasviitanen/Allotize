@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+import os
+import sys
+import json
+import shutil
+import glob
+
+os.system("wasm-pack build " + ' '.join(sys.argv[1:]))
+# Uncomment this to install JS dependencies
+# with open('pkg/package.json', 'r+') as config_f:
+#   config_json = json.load(config_f)
+#   with open('js.deps.json') as deps_f:
+#     deps_json = json.load(deps_f)
+#     config_json.update(deps_json)
+
+#     config_f.seek(0)
+#     json.dump(config_json, config_f, indent=2)
+#     config_f.truncate()
+
+
+# with open('pkg/allotize_bg.js','ab') as wfd:
+#     for f in [f for f in glob.glob("js_injections/*.js")]:
+#         with open(f,'rb') as fd:
+#             shutil.copyfileobj(fd, wfd)
+
+# os.system("cd pkg && npm install")

@@ -1,0 +1,6 @@
+[book]
+authors = ["rasviitanen"]
+language = "en"
+multilingual = false
+src = "src"
+title = "docs"

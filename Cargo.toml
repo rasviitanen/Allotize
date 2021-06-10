@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "allotize-core",
+  "allotize-signal",
+  "allotize-db",
+]
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

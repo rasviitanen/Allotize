@@ -1,0 +1,25 @@
+[package]
+name = "allotize-signal"
+version = "0.1.0"
+authors = ["rasviitanen <rasviitanen@gmail.com>"]
+description = "Signaling server for WebRTC"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dashmap = "4.0"
+eyre = "0.6.0"
+futures = "0.3"
+serde = { version = "1.0",  features = ["derive"]}
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+tracing-futures = "0.2"
+tracing-subscriber = "0.2"
+warp = "0.3"
+jsonwebtoken = "7"
+thiserror = "1.0"
+tokio-stream = "0.1.1"
+chrono = { version = "0.4", features = ["serde"]}
+base64 = "0.13.0"

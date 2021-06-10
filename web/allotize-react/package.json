@@ -1,0 +1,15 @@
+{
+  "name": "allotize-react",
+  "version": "0.0.1-alpha.0",
+  "description": "Helpers and Hooks for using Allotize with React",
+  "main": "index.js",
+  "repository": "https://github.com/rasviitanen/Allotize",
+  "homepage": "https://allotize.com",
+  "author": "Allotize",
+  "license": "MIT",
+  "private": false,
+  "peerDependencies": {
+    "allotize": "^0.0.1-alpha",
+    "react": "^16.14.0"
+  }
+}
