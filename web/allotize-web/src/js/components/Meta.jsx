@@ -14,6 +14,7 @@ export function Meta() {
         open: 0,
         closed: 0,
       },
+      token: "",
     },
   });
 
@@ -22,7 +23,7 @@ export function Meta() {
       setMeta(await metadata());
       setInterval(async () => {
         setMeta(await metadata());
-      }, 1000);
+      }, 3000);
     }
     getMeta();
   }, []);
@@ -32,6 +33,10 @@ export function Meta() {
       <section>
         <h4>User</h4>
         <strong>{username}</strong>
+      </section>
+      <section>
+        <h4>Token</h4>
+        <span style={labelStyle}>{meta.token}</span>
       </section>
       <section>
         <h4>Connections</h4>

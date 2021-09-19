@@ -51,8 +51,8 @@ async fn store_1000() {
 
 // #[wasm_bindgen_test]
 // async fn idb_1000() {
-//     let idb = IdbOpenDbRequest::new("hadal-db")
-//         .open_with_store("hadal-store")
+//     let idb = IdbOpenDbRequest::new("allotize-db")
+//         .open_with_store("allotize-store")
 //         .await
 //         .unwrap();
 

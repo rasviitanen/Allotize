@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { getAll } from "allotize-js";
+import { sectionStyle } from "../style/style";
 
 const tableStyle = {
   width: "100%",
-  border: "1px solid white",
 };
 
 const oddTableStyle = {
   background: "#f3f3f313",
+  borderRadius: "5px"
 };
 
 const tdStyle = {
@@ -28,7 +29,7 @@ export function Toc() {
       setToc(await getAll());
       setReady(true);
       setInterval(async () => {
-          setToc(await getAll());
+        setToc(await getAll());
       }, 3000);
     }
     getToc();
@@ -36,7 +37,7 @@ export function Toc() {
 
   return (
     <>
-      <section>
+      <section style={sectionStyle}>
         <table style={tableStyle}>
           <tr>
             <th>Key</th>
@@ -45,18 +46,18 @@ export function Toc() {
           </tr>
           {ready
             ? toc.map((item, idx) => {
-                return (
-                  <tr key={ idx } style={idx % 2 ? oddTableStyle : null}>
-                    <td style={tdStyle}>{ item.key }</td>
-                    <td style={tdStyle}>
-                      <pre style={preStyle}>{ getJsonIndented(item.value) }</pre>
-                    </td>
-                    <td style={tdStyle}>
-                      <pre style={preStyle}>{ getJsonIndented(item.clock.dots) }</pre>
-                    </td>
-                  </tr>
-                );
-              })
+              return (
+                <tr key={idx} style={idx % 2 ? oddTableStyle : null}>
+                  <td style={tdStyle}>{item.key}</td>
+                  <td style={tdStyle}>
+                    <pre style={preStyle}>{getJsonIndented(item.value)}</pre>
+                  </td>
+                  <td style={tdStyle}>
+                    <pre style={preStyle}>{getJsonIndented(item.clock.dots)}</pre>
+                  </td>
+                </tr>
+              );
+            })
             : "loading"}
         </table>
       </section>

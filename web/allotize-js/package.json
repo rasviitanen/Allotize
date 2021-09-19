@@ -12,7 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "allotize-core": "^0.0.1-alpha.3",
+    "allotize-core": "link:./../../allotize-core/pkg",
     "nanoid": "^3.1.25"
   },
   "devDependencies": {

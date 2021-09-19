@@ -14,8 +14,8 @@ wasm_bindgen_test_configure!(run_in_browser);
 // Simple case of put and get
 #[wasm_bindgen_test]
 async fn store_put_and_get() {
-    let idb = IdbOpenDbRequest::new("hadal-db")
-        .open_with_store("hadal-store")
+    let idb = IdbOpenDbRequest::new("allotize-db")
+        .open_with_store("allotize-store")
         .await
         .unwrap();
     idb.put("key1", "value1").await.unwrap();
@@ -26,8 +26,8 @@ async fn store_put_and_get() {
 // Simple case of put and get
 #[wasm_bindgen_test]
 async fn no_await_store_put_and_get() {
-    let idb = IdbOpenDbRequest::new("hadal-db")
-        .open_with_store("hadal-store")
+    let idb = IdbOpenDbRequest::new("allotize-db")
+        .open_with_store("allotize-store")
         .await
         .unwrap();
     let mut actions = Vec::new();
@@ -44,8 +44,8 @@ async fn no_await_store_put_and_get() {
 // Get non-existing value
 #[wasm_bindgen_test]
 async fn store_get_non_existing() {
-    let idb = IdbOpenDbRequest::new("hadal-db")
-        .open_with_store("hadal-store")
+    let idb = IdbOpenDbRequest::new("allotize-db")
+        .open_with_store("allotize-store")
         .await
         .unwrap();
     let res = idb.get("non-existing-key").await;
@@ -56,16 +56,16 @@ async fn store_get_non_existing() {
 // internal values
 #[wasm_bindgen_test]
 async fn store_persistance() {
-    let idb = IdbOpenDbRequest::new("hadal-db")
-        .open_with_store("hadal-store")
+    let idb = IdbOpenDbRequest::new("allotize-db")
+        .open_with_store("allotize-store")
         .await
         .unwrap();
     idb.put("key1", "value1").await.unwrap();
 
     drop(idb);
 
-    let idb = IdbOpenDbRequest::new("hadal-db")
-        .open_with_store("hadal-store")
+    let idb = IdbOpenDbRequest::new("allotize-db")
+        .open_with_store("allotize-store")
         .await
         .unwrap();
     let res = idb.get("key1").await.unwrap();
@@ -78,8 +78,8 @@ async fn store_persistance() {
 async fn store_multiple_open_persistance() {
     for i in 0..10 {
         {
-            let idb = IdbOpenDbRequest::new("hadal-db")
-                .open_with_store("hadal-store")
+            let idb = IdbOpenDbRequest::new("allotize-db")
+                .open_with_store("allotize-store")
                 .await
                 .unwrap();
             for j in 0..100 {
@@ -92,8 +92,8 @@ async fn store_multiple_open_persistance() {
         }
         // Make sure all open made 100 writes
         {
-            let idb = IdbOpenDbRequest::new("hadal-db")
-                .open_with_store("hadal-store")
+            let idb = IdbOpenDbRequest::new("allotize-db")
+                .open_with_store("allotize-store")
                 .await
                 .unwrap();
 

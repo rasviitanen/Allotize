@@ -1,14 +1,136 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.connect = exports.throttle = exports.debounce = exports.Crate = exports.unsubscribe = exports.subscribe = exports.remove = exports.beginsWith = exports.getRange = exports.getAll = exports.metadata = exports.allotize = exports.username = exports.upperCase = void 0;
+exports.connect = exports.throttle = exports.debounce = exports.Data = exports.unsubscribe = exports.subscribe = exports.remove = exports.beginsWith = exports.getRange = exports.getAll = exports.metadata = exports.allotize = exports.username = exports.upperCase = exports.BoundedChannel = exports.WatchChannel = void 0;
 const allotize_core_1 = require("allotize-core");
 const nanoid_1 = require("nanoid");
+class WatchChannel {
+    constructor(route) {
+        this.route = route;
+    }
+    send(msg) {
+        this.data.msg = msg;
+    }
+    read(msg) {
+        return this.data.msg;
+    }
+    async connect() {
+        let app = await exports.allotize;
+        let channel = this;
+        const sync = throttle(function (route, data) {
+            app.tx().share(route, { "data": JSON.stringify(data) });
+        }, channel.throttleInterval || 350);
+        const handler = {
+            get: function (obj, prop, receiver) {
+                return Reflect.get(obj, prop, receiver);
+            },
+            set: function (newData, prop, value, receiver) {
+                let status = Reflect.set(newData, prop, value, receiver);
+                try {
+                    channel.onMsg ? channel.onMsg(newData) : '';
+                }
+                catch (err) { }
+                try {
+                    channel.onLocalMsg ? channel.onLocalMsg(newData) : '';
+                }
+                catch (err) { }
+                try {
+                    channel.onMsgCallbacks ? channel.onMsgCallbacks.forEach((cb) => cb(newData)) : '';
+                }
+                catch (err) { }
+                sync(channel.route, newData);
+                return status;
+            },
+        };
+        const onRemoteMsg = (event) => {
+            let newData = event.detail.data ? JSON.parse(event.detail.data) : {};
+            try {
+                channel.onMsg ? channel.onMsg(newData) : '';
+            }
+            catch (err) { }
+            try {
+                channel.onRemoteMsg ? channel.onRemoteMsg(newData) : '';
+            }
+            catch (err) { }
+            try {
+                channel.onMsgCallbacks ? channel.onMsgCallbacks.forEach((cb) => cb(newData)) : '';
+            }
+            catch (err) { }
+        };
+        // Creates a proxy
+        let proxy = app.connect(channel.route, {}, handler, onRemoteMsg);
+        channel.data = proxy;
+    }
+}
+exports.WatchChannel = WatchChannel;
+class BoundedChannel {
+    constructor(route, bound) {
+        this.route = route;
+        this.bound = bound;
+        this.received = [];
+    }
+    send(msg) {
+        this.data.msg = msg;
+    }
+    read() {
+        return this.data.msg;
+    }
+    readAll() {
+        return this.received;
+    }
+    async connect() {
+        let app = await exports.allotize;
+        let channel = this;
+        const handler = {
+            get: function (obj, prop, receiver) {
+                return Reflect.get(obj, prop, receiver);
+            },
+            set: function (newData, prop, value, receiver) {
+                let status = Reflect.set(newData, prop, value, receiver);
+                try {
+                    channel.onMsg ? channel.onMsg(newData) : '';
+                }
+                catch (err) { }
+                try {
+                    channel.onLocalMsg ? channel.onLocalMsg(newData) : '';
+                }
+                catch (err) { }
+                try {
+                    channel.onMsgCallbacks ? channel.onMsgCallbacks.forEach((cb) => cb(newData)) : '';
+                }
+                catch (err) { }
+                app.tx().share(channel.route, { "data": JSON.stringify(newData) });
+                return status;
+            },
+        };
+        const onRemoteMsg = (event) => {
+            let newData = event.detail.data ? JSON.parse(event.detail.data) : {};
+            if (this.received.length >= this.bound) {
+                this.received.shift();
+            }
+            this.received.push(newData);
+            // try {
+            //   channel.onMsg ? channel.onMsg(newData) : '';
+            // } catch (err) { }
+            try {
+                channel.onRemoteMsg ? channel.onRemoteMsg(newData) : '';
+            }
+            catch (err) { }
+            // try {
+            //   channel.onMsgCallbacks ? channel.onMsgCallbacks.forEach((cb) => cb(newData)) : '';
+            // } catch (err) { }
+        };
+        // Creates a proxy
+        let proxy = app.connect(channel.route, {}, handler, onRemoteMsg);
+        channel.data = proxy;
+    }
+}
+exports.BoundedChannel = BoundedChannel;
 const upperCase = (str) => {
     return str.toUpperCase();
 };
 exports.upperCase = upperCase;
-exports.username = localStorage.getItem('username') || nanoid_1.nanoid(12);
-localStorage.setItem('username', exports.username);
+exports.username = localStorage.getItem("username") || (0, nanoid_1.nanoid)(12);
+localStorage.setItem("username", exports.username);
 exports.allotize = new allotize_core_1.App(exports.username, true);
 async function metadata() {
     let app = await exports.allotize;
@@ -20,18 +142,18 @@ async function getAll() {
     let app = await exports.allotize;
     let all = await app.tx().beginsWith("");
     return all.map(([key, value]) => {
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
             let v = JSON.parse(value);
             return {
                 key: key,
                 clock: v.clock,
-                value: v.data ? JSON.parse(v.data) : null
+                value: v.data ? JSON.parse(v.data) : null,
             };
         }
         else {
             return {
                 key: key,
-                value: value
+                value: value,
             };
         }
     });
@@ -41,12 +163,12 @@ async function getRange(start, end) {
     let app = await exports.allotize;
     let all = await app.tx().getRange(start, end);
     return Object.entries(all).map(([key, value]) => {
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
             let v = JSON.parse(value);
             return {
                 key: key,
                 clock: v.clock,
-                value: v.data ? JSON.parse(v.data) : null
+                value: v.data ? JSON.parse(v.data) : null,
             };
         }
         else {
@@ -62,18 +184,18 @@ async function beginsWith(prefix) {
     let app = await exports.allotize;
     let all = await app.tx().beginsWith(prefix);
     return all.map(([key, value]) => {
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
             let v = JSON.parse(value);
             return {
                 key: key,
                 clock: v.clock,
-                value: v.data ? JSON.parse(v.data) : null
+                value: v.data ? JSON.parse(v.data) : null,
             };
         }
         else {
             return {
                 key: key,
-                value: value
+                value: value,
             };
         }
     });
@@ -86,22 +208,26 @@ async function remove(key) {
 exports.remove = remove;
 function subscribe(key, callback) {
     let app = async () => await exports.allotize;
-    let cb = (e) => { callback(JSON.parse(e.detail.data).state); };
-    app().then(app => app.subscribe(key, cb));
+    let cb = (e) => {
+        callback(JSON.parse(e.detail.data).state);
+    };
+    app().then((app) => app.subscribe(key, cb));
     return [key, cb];
 }
 exports.subscribe = subscribe;
 function unsubscribe(key, callback) {
     let app = async () => await exports.allotize;
-    let cb = (e) => { callback(JSON.parse(e.detail.data).state); };
-    app().then(app => app.unsubscribe(key, cb));
+    let cb = (e) => {
+        callback(JSON.parse(e.detail.data).state);
+    };
+    app().then((app) => app.unsubscribe(key, cb));
 }
 exports.unsubscribe = unsubscribe;
-function Crate(crate) {
-    connect(crate);
-    return crate;
+function Data(data) {
+    connect(data);
+    return data;
 }
-exports.Crate = Crate;
+exports.Data = Data;
 function debounce(func, ms = 350) {
     let timeout;
     return function (...args) {
@@ -120,13 +246,13 @@ function throttle(func, limit = 350) {
             setTimeout(() => {
                 inThrottle = false;
                 applyLast();
+                applyLast = () => { };
             }, limit);
             return res;
         }
         else {
             applyLast = () => func.apply(this, args);
         }
-        return true;
     };
 }
 exports.throttle = throttle;
@@ -134,7 +260,6 @@ async function connect(crate) {
     let app = await exports.allotize;
     const sync = throttle(function (route, data, persist) {
         if (persist == null || persist) {
-            console.log("crdt_put", route, data);
             app.tx().crdtPut(route, JSON.stringify(data));
         }
         else {
@@ -149,15 +274,17 @@ async function connect(crate) {
             let oldData = Object.assign({}, newData);
             let status = Reflect.set(newData, prop, value, receiver);
             try {
-                crate.onChange ? crate.onChange(oldData, newData) : '';
+                crate.onChange ? crate.onChange(oldData, newData) : "";
             }
             catch (err) { }
             try {
-                crate.onLocalChange ? crate.onLocalChange(oldData, newData) : '';
+                crate.onLocalChange ? crate.onLocalChange(oldData, newData) : "";
             }
             catch (err) { }
             try {
-                crate.onChangeCallbacks ? crate.onChangeCallbacks.forEach((cb) => cb(oldData, newData)) : '';
+                crate.onChangeCallbacks
+                    ? crate.onChangeCallbacks.forEach((cb) => cb(oldData, newData))
+                    : "";
             }
             catch (err) { }
             sync(crate.route, newData, crate.persist);
@@ -165,20 +292,21 @@ async function connect(crate) {
         },
     };
     const onRemoteChange = (event) => {
-        console.log("NOOOOOH");
         let newData = event.detail ? JSON.parse(event.detail.data) : {};
         let oldData = Object.assign({}, crate.rawData);
         Object.assign(crate.rawData, newData);
         try {
-            crate.onChange ? crate.onChange(oldData, newData) : '';
+            crate.onChange ? crate.onChange(oldData, newData) : "";
         }
         catch (err) { }
         try {
-            crate.onRemoteChange ? crate.onRemoteChange(oldData, newData) : '';
+            crate.onRemoteChange ? crate.onRemoteChange(oldData, newData) : "";
         }
         catch (err) { }
         try {
-            crate.onChangeCallbacks ? crate.onChangeCallbacks.forEach((cb) => cb(oldData, newData)) : '';
+            crate.onChangeCallbacks
+                ? crate.onChangeCallbacks.forEach((cb) => cb(oldData, newData))
+                : "";
         }
         catch (err) { }
     };
@@ -199,11 +327,11 @@ async function connect(crate) {
             let oldData = Object.assign({}, crate.rawData);
             Object.assign(crate.rawData, newData);
             try {
-                crate.onChange ? crate.onChange(oldData, newData) : '';
+                crate.onChange ? crate.onChange(oldData, newData) : "";
             }
             catch (err) { }
             try {
-                crate.onRemoteChange ? crate.onRemoteChange(oldData, newData) : '';
+                crate.onRemoteChange ? crate.onRemoteChange(oldData, newData) : "";
             }
             catch (err) { }
         }, (error) => { });
@@ -215,11 +343,11 @@ async function connect(crate) {
             let oldData = Object.assign({}, crate.rawData);
             Object.assign(crate.rawData, newData);
             try {
-                crate.onChange ? crate.onChange(oldData, newData) : '';
+                crate.onChange ? crate.onChange(oldData, newData) : "";
             }
             catch (err) { }
             try {
-                crate.onRemoteChange ? crate.onRemoteChange(oldData, newData) : '';
+                crate.onRemoteChange ? crate.onRemoteChange(oldData, newData) : "";
             }
             catch (err) { }
         }, (error) => { });

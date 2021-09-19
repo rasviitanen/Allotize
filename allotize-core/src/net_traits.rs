@@ -6,16 +6,23 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppMetadata {
+    pub(crate) token: Option<String>,
     pub pool: PoolMetadata,
+}
+
+#[wasm_bindgen]
+impl AppMetadata {
+    #[wasm_bindgen(getter)]
+    pub fn token(&self) -> Option<String> {
+        self.token.clone()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionedComponent {
+    #[serde(default)]
     pub clock: VClock<String>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        default = "Option::default",
-    )]
+    #[serde(skip_serializing_if = "Option::is_none", default = "Option::default")]
     pub data: Option<String>,
 }
 
@@ -42,12 +49,12 @@ impl VersionedComponent {
 }
 
 #[derive(Debug, Clone)]
-pub struct JSVal {
+pub struct JsVal {
     pub v: JsValue,
 }
 
 use serde::ser::{SerializeStruct, Serializer};
-impl Serialize for JSVal {
+impl Serialize for JsVal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -66,7 +73,7 @@ impl Serialize for JSVal {
 use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
 use std::fmt;
 
-impl<'de> Deserialize<'de> for JSVal {
+impl<'de> Deserialize<'de> for JsVal {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -107,7 +114,7 @@ impl<'de> Deserialize<'de> for JSVal {
         struct JSValVisitor;
 
         impl<'de> Visitor<'de> for JSValVisitor {
-            type Value = JSVal;
+            type Value = JsVal;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("struct JSVal")
@@ -120,7 +127,7 @@ impl<'de> Deserialize<'de> for JSVal {
                 let v: &str = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                Ok(JSVal {
+                Ok(JsVal {
                     v: JsValue::from_serde(v).map_err(|_| de::Error::invalid_length(0, &self))?,
                 })
             }
@@ -141,7 +148,7 @@ impl<'de> Deserialize<'de> for JSVal {
                     }
                 }
                 let inner = v.ok_or_else(|| de::Error::missing_field("inner"))?;
-                Ok(JSVal {
+                Ok(JsVal {
                     v: JsValue::from_serde(inner)
                         .map_err(|_| de::Error::invalid_length(0, &self))?,
                 })
@@ -161,7 +168,7 @@ mod tests {
     fn it_works() {
         let vcomp = VersionedComponent {
             clock: VClock::default(),
-            data: None,
+            data: Some(String::from("omg")),
         };
 
         let as_str = dbg!(serde_json::to_string(&vcomp));

@@ -23,23 +23,23 @@ macro_rules! get_the_args {
         format!("\n  ╰  {}", $fmt)
     };
     ($ fmt : expr, $ ($ args : tt) *) => {
-        format!("\n  ├  {} {}", $fmt, get_the_args!($($args)*));
+        format!("\n  ├  {} {}", $fmt, get_the_args!($($args)*))
     };
 }
 
 #[allow(unused_macros)]
 macro_rules! info {
-    ($t:tt) => {
+    ($t:tt) => {{
         format!("\n {}", $t)
-    };
-    ($cmd:expr, $($t:tt)*) => {
+    }};
+    ($cmd:expr, $($t:tt)*) => {{
         crate::log(&format!(
             "[INFO] ({} → {}::{}) {}",
             $cmd,
             module_path!(),
             line!(),
-            get_the_args!($($t)*)));
-    };
+            get_the_args!($($t)*)))
+    }};
 }
 
 #[wasm_bindgen]

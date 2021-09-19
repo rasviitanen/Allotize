@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use std::task::{Context, Poll};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys;
+use web_sys::{self, RequestInit};
 
 use std::cmp;
 use std::collections::HashMap;
@@ -27,8 +27,8 @@ pub struct IdbFolder {
 impl IdbFolder {
     /// Creates a file that gets stored in memory
     pub async fn open(path: &Path) -> io::Result<IdbFolder> {
-        let idb_handle = IdbOpenDbRequest::new("hadal-db")
-            .open_with_store("hadal-store")
+        let idb_handle = IdbOpenDbRequest::new("allotize-db")
+            .open_with_store("allotize-store")
             .await
             .expect("Could not open store");
 
@@ -98,48 +98,6 @@ pub struct IdbFile {
 }
 
 impl IdbFile {
-    /// Creates a file that gets stored in memory
-    // pub async fn open(path: &Path) -> io::Result<IdbFile> {
-    //     let idb_handle = IdbOpenDbRequest::new("hadal-db")
-    //         .open_with_store("hadal-store")
-    //         .await
-    //         .expect("Could not open store");
-
-    //     let name = path.to_str().expect("Could not transform path to str");
-
-    //     let file_as_jsv: Result<JsValue, JsValue> = idb_handle.get(name).await;
-
-    //     let raw_file: RawFile = match file_as_jsv {
-    //         Ok(file) => {
-    //             if file.is_undefined() {
-    //                 RawFile::default()
-    //             } else {
-    //                 file.into_serde().expect("Could not serialize file")
-    //             }
-    //         }
-    //         Err(_err) => RawFile::default(),
-    //     };
-
-    //     let pos = raw_file.inner.len() as u64;
-
-    //     let mut files = GLOBAL_FILE_STORAGE.lock().expect("Could not lock files");
-    //     let file = match files.get(name.into()) {
-    //         Some(file) => Arc::clone(&file),
-    //         _ => {
-    //             let file = Arc::new(RwLock::new(raw_file));
-    //             files.insert(name.into(), Arc::clone(&file));
-    //             file
-    //         }
-    //     };
-
-    //     Ok(IdbFile {
-    //         pos,
-    //         name: Arc::new(name.into()),
-    //         idb_handle: Arc::new(idb_handle),
-    //         inner: file,
-    //     })
-    // }
-
     /// Returns the size of a file in bytes
     pub fn size(&self) -> usize {
         self.inner.read().unwrap().inner.len()
@@ -221,6 +179,18 @@ impl Write for IdbFile {
         let future = async move {
             let raw_file: &RawFile = &*(file.read().expect("Could not get read lock on raw file"));
             idb.put(&name, raw_file);
+
+            // // Send backup to KV store
+            // let window = web_sys::window().unwrap();
+            // let mut request =  RequestInit::new();
+            // request
+            //     .body(Some(&JsValue::from_serde(&raw_file.inner).unwrap()))
+            //     .method("POST");
+            // let promise = window.fetch_with_str_and_init(
+            //     &format!("http://127.0.0.1:8787/upload/{}", name.replace("/", "%2F")),
+            //     &request
+            // );
+            // wasm_bindgen_futures::JsFuture::from(promise).await;
         };
 
         wasm_bindgen_futures::spawn_local(future);
@@ -477,7 +447,7 @@ impl std::future::Future for IdbOpenDbRequest {
             ReadyState::Done => match self.inner.result() {
                 Ok(val) => Poll::Ready(Ok(IdbHandle::new(
                     val.unchecked_into(),
-                    "hadal-store".into(),
+                    "allotize-store".into(),
                 ))),
                 Err(e) => Poll::Ready(Err(e)),
             },

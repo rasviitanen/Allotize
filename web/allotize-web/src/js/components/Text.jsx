@@ -1,17 +1,6 @@
 import React from "react";
 import { useAllotize } from "../hooks/allotize";
-
-const sectionStyle = {
-  margin: "1em",
-  background: "#292931",
-  padding: "1rem",
-};
-
-const rowStyle = {
-  display: "flex",
-  flexDirection: "row",
-  alignItems: "center",
-};
+import { sectionStyle, rowStyle } from "../style/style";
 
 export function Text() {
   const [state, setState] = useAllotize({

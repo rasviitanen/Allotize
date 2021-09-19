@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { beginsWith, remove } from "allotize-js";
+import { sectionStyle } from "../style/style";
 
 const tableStyle = {
   width: "100%",
@@ -16,12 +17,6 @@ const tdStyle = {
 
 const preStyle = {
   color: "white",
-};
-
-const sectionStyle = {
-  margin: "1em",
-  background: "#8675A2",
-  padding: "1rem",
 };
 
 export function Query() {
@@ -65,26 +60,26 @@ export function Query() {
         </tr>
         {ready
           ? items.map((item, idx) => {
-              return (
-                <tr key={idx} style={idx % 2 ? oddTableStyle : null}>
-                  <td style={tdStyle}>{item.key}</td>
-                  <td style={tdStyle}>
-                    <pre style={preStyle}>{getJsonIndented(item.value)}</pre>
-                  </td>
-                  <td style={tdStyle}>
-                    <pre style={preStyle}>
-                      {getJsonIndented(item.clock.dots)}
-                    </pre>
-                  </td>
-                  <td style={tdStyle}>
-                    <button onClick={async () => {
-                      remove(item.key);
-                      setItems(await beginsWith(prefix));
-                    }}>remove</button>
-                  </td>
-                </tr>
-              );
-            })
+            return (
+              <tr key={idx} style={idx % 2 ? oddTableStyle : null}>
+                <td style={tdStyle}>{item.key}</td>
+                <td style={tdStyle}>
+                  <pre style={preStyle}>{getJsonIndented(item.value)}</pre>
+                </td>
+                <td style={tdStyle}>
+                  <pre style={preStyle}>
+                    {getJsonIndented(item.clock.dots)}
+                  </pre>
+                </td>
+                <td style={tdStyle}>
+                  <button onClick={async () => {
+                    remove(item.key);
+                    setItems(await beginsWith(prefix));
+                  }}>remove</button>
+                </td>
+              </tr>
+            );
+          })
           : "loading"}
       </table>
     </section>

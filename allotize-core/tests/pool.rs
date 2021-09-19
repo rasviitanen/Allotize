@@ -7,7 +7,7 @@ use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-use allotize::{Identity, RtcMessage, RtcPool, VersionedComponent};
+use allotize::{Identity, RtcCommand, RtcMessage, RtcPool, VersionedComponent};
 
 #[wasm_bindgen_test]
 async fn p2p_message() {
@@ -27,9 +27,9 @@ async fn p2p_message() {
 
     // Set up a listener on the pool, that listens for 'Uh'
     // Broadcast a message 'Oh', and expect the receiving end to return an error
-    let mut receiver = pool_one.txn().recv_cmd("get");
+    let mut receiver = pool_one.txn().recv_cmd(RtcCommand::Put);
     let message = RtcMessage {
-        command: "put".into(),
+        command: RtcCommand::Put,
         key: "hello".into(),
         value: Some(VersionedComponent::new_with_value("hello".into())),
     };
@@ -38,7 +38,7 @@ async fn p2p_message() {
 
     // Set up a listener on the pool, that listens fro 'OK'
     // Broadcast a message 'OK', and make sure the receiver accepted the message
-    receiver = pool_one.txn().recv_cmd("put");
+    receiver = pool_one.txn().recv_cmd(RtcCommand::Put);
     pool_two.txn().broadcast(&message).await;
     assert!(receiver.result().await.is_ok());
 }

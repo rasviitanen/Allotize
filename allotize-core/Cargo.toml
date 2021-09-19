@@ -1,6 +1,6 @@
 [package]
 name = "allotize-core"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Rasmus Viitanen <rasviitanen@gmail.com>"]
 description="Dynamic Web Apps without Server Infrastructure"
 readme="README.md"

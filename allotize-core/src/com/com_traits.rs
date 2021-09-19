@@ -19,9 +19,19 @@ pub struct PoolMetadata {
 }
 
 /// A message sent over a datachannel
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub enum RtcCommand {
+    Share,
+    Put,
+    CrdtPut,
+    Remove,
+    Done,
+}
+
+/// A message sent over a datachannel
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RtcMessage {
-    pub command: String,
+    pub command: RtcCommand,
     pub key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<VersionedComponent>,

@@ -6,7 +6,6 @@
 //! Hadal runs in a Virtual Machine inside your browser,
 //! and uses WebRTC to communicate with other peers.
 //! Data is stored in the browser using IndexedDB.
-#![feature(get_mut_unchecked)]
 
 extern crate crdts;
 extern crate js_sys;

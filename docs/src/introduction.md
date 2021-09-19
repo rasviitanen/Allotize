@@ -9,22 +9,20 @@
 > 🎉🎊 Thank you for checking out Allotize.
 
 # Introduction
-This is the docs for Allotize. In it you will find a tutorial that allows you
-to kickstart your new project.
+This is the docs for Allotize - A Platform for building collaborative web apps.
+In it you will find a tutorial that allows you to kickstart your new project.
 
 ## What is Allotize?
-Allotize provides a platform to build modern web applications
-without backend code, servers or even databases.
-Yet, you are able to build apps such as collaborative planning tools or social media platforms.
+Allotize provides a platform to build modern web applications without backend code, servers or even databases.
+Yet, you are able to build real-time collaborative apps with dynamic content.
 
-Think of Allotize as something that gives your data superpowers, and allows it to teleport and sync between devices!
+Think of Allotize as something that gives your traditional web app superpowers and allows data to teleport and sync between devices!
 
 ## How it works
 You connect variables, objects, or any other JavaScript code to Allotize.
 Your users will then be able to detect updates and changes on each others' machines.
-
-This means that you can build message boards, collaborative services, games or anything you could think of with just client-side code.
-Here is an example of a cube that can be rotated by users along with an upvoting system.
+The state is managed in an offline-first approach and typical data conflicts that
+happen in distributed systems are handled automatically by Allotize.
 
 <div align="center">
 <img align="center" src="./assets/cubea.gif" >
@@ -56,4 +54,4 @@ document.getElementById("downvote").addEventListener('click', (e) => {
 ```
 
 That's it! Everyone who loads our website will have a synced number of upvotes that changes in real-time.
-Proceed to the next chapter, to find out how you can create your own app!
+Proceed to the next chapter to find out how you can create your own app!

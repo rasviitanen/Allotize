@@ -36,7 +36,7 @@ async fn share_kv_pair() {
     // The remote_app tells the local_app that all transactions are done
     let mut done_listener = local_app.txn().await.recv_cmd("done");
     let message = RtcMessage {
-        command: "done".into(),
+        command: RtcCommand::Done,
         key: "*".into(),
         value: None,
     };

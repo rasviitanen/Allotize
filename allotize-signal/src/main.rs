@@ -27,7 +27,6 @@ enum Protocol {
     OneToAll,
     OneToOne,
     OneToRoom,
-    OneToSelf,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -161,6 +160,7 @@ async fn auth(x_api_key: String) -> Result<impl warp::Reply, warp::Rejection> {
     .tokenize();
 
     let reply = warp::reply::json(&response);
+
     if let Ok(token) = token {
         Ok(warp::reply::with_header(reply, "Authorization", &token))
     } else {
@@ -190,19 +190,22 @@ fn routes() -> BoxedFilter<(impl warp::Reply,)> {
     let routes = routes.or(warp::path("connect")
         .and(warp::path::param())
         .and(warp::path::param())
-        // .and(warp::path::param())
+        .and(warp::header("X-API-Key"))
         .and(warp::ws())
         .and(signaling_server)
-        .map(
+        .and_then(
             |room: String,
              username: String,
-             //  token: String,
+             x_api_key: String,
              ws: warp::ws::Ws,
-             signaling_server: SignalingServer| {
-                // info!("##### {}", token);
-                ws.on_upgrade(move |socket| async move {
+             signaling_server: SignalingServer| async move {
+                if !auth::KEYS.contains(&x_api_key.as_str()) {
+                    return Err(warp::reject::custom(WebError::InvalidAPIKey));
+                }
+
+                Ok(ws.on_upgrade(move |socket| async move {
                     signaling_server.connect_user(room, username, socket).await;
-                })
+                }))
             },
         ));
 

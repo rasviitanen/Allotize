@@ -10,6 +10,8 @@ use futures_channel::oneshot;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use super::com_traits::RtcCommand;
+
 /// A transaction for communication over a datachannel
 pub struct RtcTxn {
     inner: Rc<RefCell<RtcConstructs>>,
@@ -45,7 +47,7 @@ impl RtcTxn {
         self.inner.borrow().broadcast(message);
     }
 
-    pub fn recv_cmd(mut self, command: &'static str) -> RtcTxn {
+    pub fn recv_cmd(mut self, command: RtcCommand) -> RtcTxn {
         let (cx, rx) = oneshot::channel();
         self.on_message = Some(Closure::once(move |e: MessageEvent| {
             let received_str: String =

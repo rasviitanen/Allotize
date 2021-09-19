@@ -1,3 +1,4 @@
+use crate::com::com_traits::RtcCommand;
 use crate::{net_traits::AppMetadata, Identity, RtcMessage, RtcPool, RtcTxn};
 use allotize_db::KvStore;
 use futures::lock::Mutex;
@@ -10,8 +11,22 @@ use js_sys::Proxy;
 use wasm_bindgen::prelude::*;
 use web_sys::{CustomEvent, EventTarget, MessageEvent};
 
-use crate::net_traits::{JSVal, VersionedComponent};
+use crate::net_traits::{JsVal, VersionedComponent};
 use crdts::CvRDT;
+
+pub enum Status {
+    NotFound,
+    Success,
+}
+
+impl From<Status> for JsValue {
+    fn from(s: Status) -> Self {
+        match s {
+            Status::NotFound => JsValue::from_str("Not Found"),
+            Status::Success => JsValue::from_str("Success"),
+        }
+    }
+}
 
 #[wasm_bindgen]
 pub struct Tx {
@@ -22,14 +37,18 @@ pub struct Tx {
     identity: Identity,
 }
 
-fn notify_js_about_local_change(event_target: &EventTarget, key: &str, component: &VersionedComponent) {
+fn notify_js_about_local_change(
+    event_target: &EventTarget,
+    key: &str,
+    component: &VersionedComponent,
+) {
     let key = format!("{}@local", key);
     let notify_event = CustomEvent::new(&key).unwrap();
     notify_event.init_custom_event_with_can_bubble_and_cancelable_and_detail(
         &key,
         true,
         true,
-        &JsValue::from_serde(component).unwrap()
+        &JsValue::from_serde(component).unwrap(),
     );
     event_target
         .dispatch_event(&notify_event)
@@ -43,13 +62,13 @@ impl Tx {
         let pool = Arc::clone(&self.pool);
         let future = async move {
             let message = RtcMessage {
-                command: "share".into(),
-                key: key.clone(),
+                command: RtcCommand::Share,
+                key,
                 value: value.into_serde().ok(),
             };
 
             pool.lock().await.txn().broadcast(&message).await;
-            Ok(JsValue::from_str("OK"))
+            Ok(Status::Success.into())
         };
         wasm_bindgen_futures::future_to_promise(future)
     }
@@ -68,7 +87,7 @@ impl Tx {
                 .lock()
                 .await
                 .txn()
-                .set(key.clone(), &JSVal { v: value.clone() })
+                .set(key.clone(), &JsVal { v: value.clone() })
                 .await
                 .unwrap();
 
@@ -79,14 +98,14 @@ impl Tx {
             }
 
             let message = RtcMessage {
-                command: "put".into(),
+                command: RtcCommand::Put,
                 key,
                 value: component,
             };
 
             pool.lock().await.require_channels(1).await.unwrap();
             pool.lock().await.txn().broadcast(&message).await;
-            Ok(JsValue::from_str("OK"))
+            Ok(Status::Success.into())
         };
         wasm_bindgen_futures::future_to_promise(future)
     }
@@ -99,7 +118,7 @@ impl Tx {
     #[wasm_bindgen(js_name = crdtPut)]
     pub fn crdt_put(&self, key: String, value: String) -> js_sys::Promise {
         info!(
-            "crdt_put123",
+            "crdt_put",
             "->",
             format!("key: {}, value: {:?}", key, value)
         );
@@ -136,13 +155,13 @@ impl Tx {
 
             // Notify peers about the change
             let message = RtcMessage {
-                command: "crdt_put".into(),
+                command: RtcCommand::CrdtPut,
                 key,
                 value: Some(component),
             };
 
             pool.lock().await.txn().broadcast(&message).await;
-            Ok(JsValue::from_str("OK"))
+            Ok(Status::Success.into())
         };
         wasm_bindgen_futures::future_to_promise(future)
     }
@@ -178,8 +197,8 @@ impl Tx {
 
     #[wasm_bindgen(js_name = syncWithPeers)]
     pub fn sync_with_peers(&self, key: String) -> js_sys::Promise {
-        let store = Arc::clone(&self.store);
-        let pool = Arc::clone(&self.pool);
+        let store = self.store.clone();
+        let pool = self.pool.clone();
 
         let future = async move {
             let local_component: VersionedComponent = store
@@ -198,7 +217,7 @@ impl Tx {
             // If there is a more recent one, ours will be updated,
             // otherwise theirs will
             let message = RtcMessage {
-                command: "crdt_put".into(),
+                command: RtcCommand::CrdtPut,
                 key,
                 value: Some(local_component.clone()),
             };
@@ -219,18 +238,18 @@ impl Tx {
     /// If no value corresponds to the given key, an `JsValue`
     /// is returned containing "Not found"
     pub fn get(&self, key: String) -> js_sys::Promise {
-        let store = Arc::clone(&self.store);
+        let store = self.store.clone();
         let future = async move {
             store
                 .lock()
                 .await
                 .txn()
-                .get(key.to_owned())
+                .get(key)
                 .await
                 .ok()
                 .flatten()
                 .map(|val| JsValue::from_str(&val))
-                .ok_or_else(|| JsValue::from_str("Not found"))
+                .ok_or_else(|| Status::NotFound.into())
         };
         wasm_bindgen_futures::future_to_promise(future)
     }
@@ -238,7 +257,7 @@ impl Tx {
     /// Gets key/value pairs from the store for a given `Range`.
     #[wasm_bindgen(js_name = getRange)]
     pub fn get_range(&self, start: String, end: Option<String>) -> js_sys::Promise {
-        let store = Arc::clone(&self.store);
+        let store = self.store.clone();
         let future = async move {
             store
                 .lock()
@@ -251,7 +270,7 @@ impl Tx {
                 .await
                 .map(|it| JsValue::from_serde(&it))
                 .expect("Could not run `get_range`")
-                .map_err(|_| JsValue::from_str("Not found"))
+                .map_err(|_| Status::NotFound.into())
         };
         wasm_bindgen_futures::future_to_promise(future)
     }
@@ -259,7 +278,7 @@ impl Tx {
     /// Gets key/value pairs from the store for a given `Range`.
     #[wasm_bindgen(js_name = beginsWith)]
     pub fn begins_with(&self, mut prefix: String) -> js_sys::Promise {
-        let store = Arc::clone(&self.store);
+        let store = self.store.clone();
         let future = async move {
             store
                 .lock()
@@ -272,7 +291,7 @@ impl Tx {
                 .await
                 .map(|it| JsValue::from_serde(&it))
                 .expect("Could not run `get_range`")
-                .map_err(|_| JsValue::from_str("Not found"))
+                .map_err(|_| Status::NotFound.into()))
         };
         wasm_bindgen_futures::future_to_promise(future)
     }
@@ -286,7 +305,7 @@ impl Tx {
         let pool = Arc::clone(&self.pool);
         let future = async move {
             let message = RtcMessage {
-                command: "remove".into(),
+                command: RtcCommand::Remove,
                 key: key.clone(),
                 value: None,
             };
@@ -295,7 +314,7 @@ impl Tx {
                 .lock()
                 .await
                 .txn()
-                .remove(key.to_owned())
+                .remove(key)
                 .await
                 .map(|_| JsValue::from_bool(true))
                 .map_err(|_| JsValue::from_bool(false));
@@ -326,12 +345,17 @@ pub struct App {
     pool: Arc<Mutex<RtcPool>>,
     store: Arc<Mutex<KvStore>>,
     event_target: Arc<EventTarget>,
+    token: Option<String>,
 }
 
 /// Facade for `JavaScript`, all implementations here are
 /// exposed to `JavaScript` through `#[wasm_bindgen]`
 #[wasm_bindgen]
 impl App {
+    pub fn api_token(&mut self, token: String) {
+        self.token.replace(token);
+    }
+
     pub fn tx(&self, scope: Option<String>) -> Tx {
         Tx {
             _scope: scope,
@@ -344,8 +368,11 @@ impl App {
 
     pub fn metadata(&self) -> js_sys::Promise {
         let pool = Arc::clone(&self.pool);
+        let token = self.token.clone();
+
         let future = async move {
             let metadata = AppMetadata {
+                token,
                 pool: pool.lock().await.metadata(),
             };
 
@@ -365,7 +392,7 @@ impl App {
                 .await
                 .map(|it| JsValue::from_serde(&it))
                 .expect("Could not run `get_all`")
-                .map_err(|_| JsValue::from_str("Not found"))
+                .map_err(|_| Status::Not found.into())
         };
         wasm_bindgen_futures::future_to_promise(future)
     }
@@ -414,7 +441,7 @@ impl App {
     #[wasm_bindgen(constructor)]
     pub async fn new(username: String, send_offer: bool) -> App {
         let identity = Identity::new(&username);
-        let test_path = PathBuf::from("/tempstore");
+        let test_path = PathBuf::from("tempstore");
 
         let store = Arc::new(Mutex::new(
             KvStore::open(&test_path)
@@ -463,165 +490,194 @@ impl App {
                     &key,
                     true,
                     true,
-                    &JsValue::from_serde(component).unwrap());
+                    &JsValue::from_serde(component).unwrap(),
+                );
 
                 target
                     .dispatch_event(&notify_event)
                     .expect("Could not dispatch event");
             };
 
-            if rtc_message.command == "share" {
-                notify(&cloned_event_target, &rtc_message.key, rtc_message.value.as_ref().unwrap());
-            } else if rtc_message.command == "put" {
-                notify(&cloned_event_target, &rtc_message.key, rtc_message.value.as_ref().unwrap());
-                let cloned_store2 = Arc::clone(&cloned_store);
-                // Update the value
-                wasm_bindgen_futures::spawn_local(async move {
-                    cloned_store2
-                        .lock()
-                        .await
-                        .txn()
-                        .set(rtc_message.key, &rtc_message.value.unwrap())
-                        .await
-                        .unwrap();
-                });
-            } else if rtc_message.command == "remove" {
-                notify(&cloned_event_target, &rtc_message.key, rtc_message.value.as_ref().unwrap());
+            match rtc_message.command {
+                RtcCommand::Share => {
+                    notify(
+                        &cloned_event_target,
+                        &rtc_message.key,
+                        rtc_message.value.as_ref().unwrap(),
+                    );
+                }
+                RtcCommand::Put => {
+                    notify(
+                        &cloned_event_target,
+                        &rtc_message.key,
+                        rtc_message.value.as_ref().unwrap(),
+                    );
+                    let cloned_store2 = Arc::clone(&cloned_store);
+                    // Update the value
+                    wasm_bindgen_futures::spawn_local(async move {
+                        cloned_store2
+                            .lock()
+                            .await
+                            .txn()
+                            .set(rtc_message.key, &rtc_message.value.unwrap())
+                            .await
+                            .unwrap();
+                    });
+                }
+                RtcCommand::CrdtPut => {
+                    let cloned_pool2 = Arc::clone(&cloned_pool);
+                    let cloned_store2 = Arc::clone(&cloned_store);
+                    let cloned_event_target2 = Arc::clone(&cloned_event_target);
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let mut local_component: VersionedComponent = cloned_store2
+                            .lock()
+                            .await
+                            .txn()
+                            .get(rtc_message.key.clone())
+                            .await
+                            .ok()
+                            .flatten()
+                            .map(|ss| serde_json::from_str(&ss).ok())
+                            .flatten()
+                            .unwrap_or_default();
 
-                let cloned_store2 = Arc::clone(&cloned_store);
-                wasm_bindgen_futures::spawn_local(async move {
-                    cloned_store2
-                        .lock()
-                        .await
-                        .txn()
-                        .remove(rtc_message.key)
-                        .await
-                        .unwrap();
-                })
-            } else if rtc_message.command == "crdt_put" {
-                let cloned_pool2 = Arc::clone(&cloned_pool);
-                let cloned_store2 = Arc::clone(&cloned_store);
-                let cloned_event_target2 = Arc::clone(&cloned_event_target);
-                wasm_bindgen_futures::spawn_local(async move {
-                    let mut local_component: VersionedComponent = cloned_store2
-                        .lock()
-                        .await
-                        .txn()
-                        .get(rtc_message.key.clone())
-                        .await
-                        .ok()
-                        .flatten()
-                        .map(|ss| serde_json::from_str(&ss).ok())
-                        .flatten()
-                        .unwrap_or_default();
+                        let remote_component = rtc_message
+                            .value
+                            .as_ref()
+                            .expect("missing remote component");
 
-                    let remote_component = rtc_message.value.as_ref().expect("missing remote component");
+                        match local_component.clock.partial_cmp(&remote_component.clock) {
+                            Some(std::cmp::Ordering::Equal) => {
+                                info!(
+                                    "CRDT",
+                                    "UP TO DATE",
+                                    "All changes seen, accept final merge...",
+                                    format!(" Local: {:?}", local_component),
+                                    format!(" Remote: {:?}", remote_component)
+                                );
 
-                    match local_component.clock.partial_cmp(&remote_component.clock) {
-                        Some(std::cmp::Ordering::Equal) => {
-                            info!(
-                                "CRDT",
-                                "UP TO DATE",
-                                "All changes seen, accept final merge...",
-                                format!(" Local: {:?}", local_component),
-                                format!(" Remote: {:?}", remote_component)
-                            );
+                                cloned_store2
+                                    .lock()
+                                    .await
+                                    .txn()
+                                    .set(rtc_message.key.clone(), &remote_component)
+                                    .await
+                                    .unwrap()
+                            }
+                            Some(std::cmp::Ordering::Less) => {
+                                notify(
+                                    &cloned_event_target2,
+                                    &rtc_message.key,
+                                    rtc_message.value.as_ref().unwrap(),
+                                );
+                                // Remote is ahead, so we trash our version
+                                // and use theirs instead
+                                info!(
+                                    "CRDT",
+                                    "REMOTE IS AHEAD",
+                                    "Updating local component...",
+                                    rtc_message.key.clone(),
+                                    ""
+                                );
 
-                            cloned_store2
-                                .lock()
-                                .await
-                                .txn()
-                                .set(rtc_message.key.clone(), &remote_component)
-                                .await
-                                .unwrap()
-                        }
-                        Some(std::cmp::Ordering::Less) => {
-                            notify(&cloned_event_target2, &rtc_message.key, rtc_message.value.as_ref().unwrap());
-                            // Remote is ahead, so we trash our version
-                            // and use theirs instead
-                            info!(
-                                "CRDT",
-                                "REMOTE IS AHEAD",
-                                "Updating local component...",
-                                rtc_message.key.clone(),
-                                ""
-                            );
+                                cloned_store2
+                                    .lock()
+                                    .await
+                                    .txn()
+                                    .set(rtc_message.key.clone(), &remote_component)
+                                    .await
+                                    .unwrap();
+                            }
+                            Some(std::cmp::Ordering::Greater) => {
+                                info!(
+                                    "CRDT",
+                                    "LOCAL IS AHEAD", "Sending local component to remote..."
+                                );
 
-
-                            cloned_store2
-                                .lock()
-                                .await
-                                .txn()
-                                .set(rtc_message.key.clone(), &remote_component)
-                                .await
-                                .unwrap();
-                        }
-                        Some(std::cmp::Ordering::Greater) => {
-                            info!(
-                                "CRDT",
-                                "LOCAL IS AHEAD", "Sending local component to remote..."
-                            );
-
-                            // Local is ahead
-                            // so we notify our peer about this,
-                            // so that they can update their data
-                            let message = RtcMessage {
-                                command: "crdt_put".into(),
-                                key: rtc_message.key,
-                                value: Some(local_component),
-                            };
-                            cloned_pool2.lock().await.txn().broadcast(&message).await;
-                            return;
-                        }
-                        None => {
-                            info!(
-                                "CRDT",
-                                "MERGE CONFLICT",
-                                "Handeling merge with appropriate strategy...",
-                                format!(" Local: {:?}", local_component),
-                                format!(" Remote: {:?}", remote_component)
-                            );
-
-                            // Clocks are not synchronized, which means we
-                            // have a merge conflict
-
-                            // E.g. Local: `<BOB:2>`, Remote: `<ALICE:1, BOB:1>`
-                            // Here we use a manual strategy to handle the
-                            // merge conflict
-                            // FIXME:(rasviitanen)
-                            // We should use a better strategy, such
-                            // as timestamping. Best of all is to allow
-                            // users to specify their own strategy
-                            if local_component.data < remote_component.data {
-                                // make users pick the same item
+                                // Local is ahead
+                                // so we notify our peer about this,
+                                // so that they can update their data
+                                let message = RtcMessage {
+                                    command: RtcCommand::CrdtPut,
+                                    key: rtc_message.key,
+                                    value: Some(local_component),
+                                };
+                                cloned_pool2.lock().await.txn().broadcast(&message).await;
                                 return;
                             }
+                            None => {
+                                info!(
+                                    "CRDT",
+                                    "MERGE CONFLICT",
+                                    "Handeling merge with appropriate strategy...",
+                                    format!(" Local: {:?}", local_component),
+                                    format!(" Remote: {:?}", remote_component)
+                                );
 
-                            local_component.clock.merge(remote_component.clock.clone());
-                            local_component.data = remote_component.clone().data;
+                                // Clocks are not synchronized, which means we
+                                // have a merge conflict
 
-                            notify(&cloned_event_target2, &rtc_message.key, rtc_message.value.as_ref().unwrap());
+                                // E.g. Local: `<BOB:2>`, Remote: `<ALICE:1, BOB:1>`
+                                // Here we use a manual strategy to handle the
+                                // merge conflict
+                                // FIXME:(rasviitanen)
+                                // We should use a better strategy, such
+                                // as timestamping. Best of all is to allow
+                                // users to specify their own strategy
+                                if local_component.data < remote_component.data {
+                                    // make users pick the same item
+                                    return;
+                                }
 
-                            cloned_store2
-                                .lock()
-                                .await
-                                .txn()
-                                .set(rtc_message.key.clone(), &local_component)
-                                .await
-                                .unwrap();
+                                local_component.clock.merge(remote_component.clock.clone());
+                                local_component.data = remote_component.clone().data;
 
-                            // Notify peers about the merge change
-                            let message = RtcMessage {
-                                command: "crdt_put".into(),
-                                key: rtc_message.key,
-                                value: Some(local_component),
-                            };
-                            cloned_pool2.lock().await.txn().broadcast(&message).await;
+                                notify(
+                                    &cloned_event_target2,
+                                    &rtc_message.key,
+                                    rtc_message.value.as_ref().unwrap(),
+                                );
 
-                            return;
+                                cloned_store2
+                                    .lock()
+                                    .await
+                                    .txn()
+                                    .set(rtc_message.key.clone(), &local_component)
+                                    .await
+                                    .unwrap();
+
+                                // Notify peers about the merge change
+                                let message = RtcMessage {
+                                    command: RtcCommand::CrdtPut,
+                                    key: rtc_message.key,
+                                    value: Some(local_component),
+                                };
+                                cloned_pool2.lock().await.txn().broadcast(&message).await;
+
+                                return;
+                            }
                         }
-                    }
-                });
+                    });
+                }
+                RtcCommand::Remove => {
+                    notify(
+                        &cloned_event_target,
+                        &rtc_message.key,
+                        rtc_message.value.as_ref().unwrap(),
+                    );
+
+                    let cloned_store2 = Arc::clone(&cloned_store);
+                    wasm_bindgen_futures::spawn_local(async move {
+                        cloned_store2
+                            .lock()
+                            .await
+                            .txn()
+                            .remove(rtc_message.key)
+                            .await
+                            .unwrap();
+                    })
+                }
+                RtcCommand::Done => todo!(),
             }
         }) as Box<dyn FnMut(MessageEvent)>);
 
@@ -633,6 +689,7 @@ impl App {
             pool,
             store,
             event_target,
+            token: None,
         }
     }
 }
@@ -655,13 +712,13 @@ impl App {
 
         // Notify peers about the change
         let message = RtcMessage {
-            command: "put".into(),
+            command: RtcCommand::Put,
             key,
             value: Some(value),
         };
         self.pool.lock().await.txn().broadcast(&message).await;
 
-        Ok(JsValue::NULL)
+        Ok(Status::Success.into())
     }
 
     /// Given a key, this function returns a `Promise`, that when resolved
@@ -705,13 +762,13 @@ impl App {
 
         // Notify peers about the change
         let message = RtcMessage {
-            command: "crdt_put".into(),
+            command: RtcCommand::CrdtPut,
             key,
             value: Some(new_component),
         };
 
         self.pool.lock().await.txn().broadcast(&message).await;
-        Ok(JsValue::NULL)
+        Ok(Status::Success.into())
     }
 
     /// Gets a KV-pair from the database

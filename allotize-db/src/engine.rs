@@ -111,6 +111,20 @@ impl KvStore {
         let mut readers = HashMap::new();
         let mut index = BTreeMap::new();
 
+        // let remote_gen_list = {
+        //     let window = web_sys::window().unwrap();
+        //     let mut request = web_sys::RequestInit::new();
+        //     request.method("GET");
+        //     let promise = window.fetch_with_str_and_init(
+        //         &format!("http://127.0.0.1:8787/list_records/{}", path.display()),
+        //         &request,
+        //     );
+        //     let response = wasm_bindgen_futures::JsFuture::from(promise)
+        //         .await
+        //         .expect("oops");
+        //     let response = web_sys::Response::from(response);
+        // };
+
         let gen_list = sorted_gen_list(&path).await?;
         let mut uncompacted = 0;
 
@@ -122,8 +136,6 @@ impl KvStore {
             readers.insert(log_path, reader);
         }
 
-        // TODO this should be + 1
-        // let current_gen = gen_list.last().unwrap_or(&0) + 0;
         let current_gen = gen_list.last().unwrap_or(&0) + 1;
         let writer = new_log_file(&path, &mut sink, current_gen, &mut readers).await?;
         let mut writers = HashMap::new();
@@ -533,7 +545,7 @@ fn load(
 }
 
 fn log_path(dir: &Path, gen: u64) -> PathBuf {
-    dir.join(format!("{}.log", gen))
+    dir.join(format!("{}", gen))
 }
 
 /// Struct representing a command

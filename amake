@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import sys
 import subprocess
@@ -7,10 +7,10 @@ input_command = sys.argv[1]
 input_arguments = sys.argv[2:]
 
 available_commands = [
-  ("start:book", "mdbook serve docs", "Serves the mdbook"),
-  ("start:client", "cd web/allotize-web && yarn start", "Serves the mdbook"),
-  ("start:essence", "cd web/allotize-essence && yarn start", "Serves the mdbook"),
-  ("start:signal", "cd allotize-signal && cargo run", "Starts the signaling server"),
+  ("run:book", "mdbook serve docs", "Serves the mdbook"),
+  ("run:client", "cd web/allotize-web && yarn start", "Serves the web client"),
+  ("run:essence", "cd web/allotize-essence && yarn start", "Serves the essence project"),
+  ("run:signal", "cd allotize-signal && cargo run", "Starts the signaling server"),
 
   ("pack:core", "wasm-pack build allotize-core && cd web/allotize-js && yarn && yarn build", "Generates a new WASM pkg from the Rust source"),
 
